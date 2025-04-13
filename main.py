@@ -1,12 +1,48 @@
-from fetch_tools import *
-def main():
-    # 0、初始化参数
-    api_key = "__自己注册__"  # 这里的API要自己去上面的网址注册一个，免费版一天只能爬100天的新闻:1d754b596757088d38ea69b73ae145c2
-    query = "NVIDIA"  # 这是搜索新闻的关键字
-    start_date = "2024-12-31"  # 自己算一下日期，别超过100天
-    end_date = "2024-09-23"  # 最好是爬2024年8月1日到2025年4月8日的，苹果的股票我用的这个区间
-    # 1、爬取新闻数据
-    fetch_news_over_time(api_key, query, start_date, end_date)
+import wandb
+
+from fetch import *
+from test import *
+from train import train as training
+
+
+def fetch():
+    """1、爬取新闻数据并进行评分处理"""
+    # 1.1、爬取新闻数据
+    fetch_news_over_time(api_key, query, start_date, end_date, fetch_file)
+    # 1.2、合并文档
+    merge_json_file(files=merge_input_files, output_file=merge_output_file)
+    # 1.3、对每日新闻数据评分
+    get_scores(news_data_file=news_data_file, device=device, saved_score_file=saved_score_file, save_to_csv=True)
+    # 1.4、爬取股票数据
+    fetch_price(api_key=API_KEY, ticker=ticker)
+    # 1.5、处理股票数据
+    fetch_stock(ticker=ticker)
+
+def train():
+    pre_train()
+    # 要用wandb自动调参的话先去注册一个，拿一个api
+    sweep_id = wandb.sweep(sweep_config, project=f"{ticker}_stock_forecast")  # 这里改你的名称，下面的链接点进去可以看训练情况
+    # 使用wandb进行训练
+    wandb.agent(sweep_id, training, count=10)  # 这里你可以看情况改，5次10次都可以
+
+def test():
+    """测试"""
+    pred_df = predict_future(best_model_path, device=device)
+    """画图"""
+    visual()
+
 
 if __name__ == '__main__':
-    main()
+    """0、初始化参数"""
+    # 静态参数从settings中配置并获取
+    # 注意用GPU,不知道为什么不改的话下面的代码都是默认用CPU，CPU还是有点慢,下面的代码有的地方我也稍微改了一下
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    """爬数据+预处理数据"""
+    fetch()
+
+    """加载数据，模型训练"""
+    train()
+
+    """测试+可视化"""
+    test()
