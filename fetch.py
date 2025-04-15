@@ -44,6 +44,8 @@ def fetch_news_over_time(api_key: str, query: str, start_date: str, end_date: st
                 json.dump(master_data, f, ensure_ascii=False, indent=4)
             # todo: 待检查是否需要这种方法
             time.sleep(1)  # 这里稍微停一下，防止开始计费
+            count = count + 1
+            print(f"{count}/{count_date}")
         else:
             print(f"Skipping {date_str}, already fetched.")
 
