@@ -22,18 +22,19 @@ def fetch_gnews(api_key: str, query: str, date_str: str):
     return {date_str: articles}
 
 
-def fetch_news_over_time(api_key: str, query: str, start_date: str, end_date: str, output_file: str):
+def fetch_news_over_time(api_key: str, query: str, start_date: str, end_date: str, output_file: str, count_date: int):
     """爬取数据，从start_date倒着爬，直到end_date停止"""
     current_date = datetime.strptime(start_date, "%Y-%m-%d")
     end_date = datetime.strptime(end_date, "%Y-%m-%d")
     # 读取已有数据
     try:
-        with open(output_file, "r") as f:
+        with open(output_file, "r", encoding='utf-8') as f:
             master_data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         master_data = {}
     # 爬取数据
-    while current_date >= end_date:
+    count = 0
+    while current_date >= end_date and count < count_date:
         date_str = current_date.strftime("%Y-%m-%d")
         if date_str not in master_data:
             print(f"Fetching news for {date_str}...")
