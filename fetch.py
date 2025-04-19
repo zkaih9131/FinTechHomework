@@ -1,3 +1,5 @@
+from urllib.error import HTTPError
+
 from alpha_vantage.timeseries import TimeSeries
 from datetime import datetime, timezone, timedelta
 from urllib.request import urlopen
@@ -22,7 +24,7 @@ def fetch_gnews(api_key: str, query: str, date_str: str):
     return {date_str: articles}
 
 
-def fetch_news_over_time(api_key: str, query: str, start_date: str, end_date: str, output_file: str, count_date: int):
+def fetch_news_over_time(api_keys: list, query: str, start_date: str, end_date: str, output_file: str, count_date: int):
     """爬取数据，从start_date倒着爬，直到end_date停止"""
     current_date = datetime.strptime(start_date, "%Y-%m-%d")
     end_date = datetime.strptime(end_date, "%Y-%m-%d")
@@ -33,23 +35,30 @@ def fetch_news_over_time(api_key: str, query: str, start_date: str, end_date: st
     except (FileNotFoundError, json.JSONDecodeError):
         master_data = {}
     # 爬取数据
-    count = 0
-    while current_date >= end_date and count < count_date:
-        date_str = current_date.strftime("%Y-%m-%d")
-        if date_str not in master_data:
-            print(f"Fetching news for {date_str}...")
-            master_data.update(fetch_gnews(api_key=api_key, query=query, date_str=date_str))
-            # 保存date_str当天的数据
-            with open(output_file, "w", encoding="utf-8") as f:
-                json.dump(master_data, f, ensure_ascii=False, indent=4)
-            # todo: 待检查是否需要这种方法
-            time.sleep(1)  # 这里稍微停一下，防止开始计费
-            count = count + 1
-            print(f"{count}/{count_date}")
-        else:
-            print(f"Skipping {date_str}, already fetched.")
+    for i, api_key in enumerate(api_keys):
+        print(f"{i+1}/{len(api_keys)} API_KEY:{api_key}")
+        count = 0
+        while current_date >= end_date and count < count_date:
+            date_str = current_date.strftime("%Y-%m-%d")
+            if date_str not in master_data:
+                print(f"Fetching news for {date_str}...")
+                try:
+                    fetch_data = fetch_gnews(api_key=api_key, query=query, date_str=date_str)
+                except (HTTPError, Exception):
+                    print(f"httperror")
+                    break
+                master_data.update(fetch_data)
+                # 保存date_str当天的数据
+                with open(output_file, "w", encoding="utf-8") as f:
+                    json.dump(master_data, f, ensure_ascii=False, indent=4)
+                # todo: 待检查是否需要这种方法
+                time.sleep(0.5)  # 这里稍微停一下，防止开始计费
+                count = count + 1
+                print(f"{count}/{count_date}")
+            else:
+                print(f"Skipping {date_str}, already fetched.")
 
-        current_date -= timedelta(days=1)
+            current_date -= timedelta(days=1)
 
     print("saved: gnews_master.json")
 
